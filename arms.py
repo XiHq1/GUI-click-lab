@@ -195,6 +195,7 @@ def main():
 
     rows = []
     print(f"目标 {len(targets)} 个 | 画布 {args.canvas} | 图片 {IW}x{IH} | 裁剪 {args.crop}px×{args.crop_zoom}")
+    jl = open(out / "results.jsonl", "w", encoding="utf-8")
 
     for i, el in enumerate(targets, 1):
         label = el["label"]
@@ -249,11 +250,14 @@ def main():
         })
 
         rows.append(rec)
+        jl.write(json.dumps(rec, ensure_ascii=False) + "\n")
+        jl.flush()          # 边跑边落盘：中途出错也不丢已跑的结果
         mark = "".join("✓" if rec[f"p{k}_hit"] else "✗" for k in (0, 1, 2))
         print(f"[{i:2d}] {label:<8s} P0P1P2={mark}  "
               f"误差 {rec['p0_dist']}/{rec['p1_dist']}/{rec['p2_dist']}")
 
     # ---------- 汇总 ----------
+    jl.close()
     n = len(rows)
     hits = {k: sum(r[f"p{k}_hit"] for r in rows) for k in (0, 1, 2)}
     rescued = [r for r in rows if not r["p0_hit"] and r["p1_hit"]]
