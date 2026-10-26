@@ -42,18 +42,19 @@ _VENDOR = HERE / "vendor"
 if _VENDOR.is_dir():
     sys.path.insert(0, str(_VENDOR))
 
-PROMPT_DIRECT = """You are a GUI agent. The screenshot is {w}x{h} pixels.
-Find the control labeled "{label}" and give the pixel coordinate of its center.
+PROMPT_DIRECT = """你是 GUI 定位模型。截图尺寸是 {w}x{h} 像素。
+请在界面中找到文字为「{label}」的控件，给出该控件中心点的像素坐标。
 Reply with only: <point>x,y</point>, where x is in [0,{w1}], y in [0,{h1}]. No explanation."""
 
-PROMPT_ZOOM = """This is a zoomed-in crop of a GUI, {w}x{h} pixels.
-Find the control labeled "{label}" and give the pixel coordinate of its center IN THIS CROP.
-Reply with only: <point>x,y</point>, where x is in [0,{w1}], y is in [0,{h1}]. No explanation."""
+PROMPT_ZOOM = """这是一张界面截图的局部放大图，尺寸 {w}x{h} 像素。
+请在这张放大图中找到文字为「{label}」的控件，给出它在这张图中的中心点坐标。
+只输出一行，严格使用这个格式：<point>x,y</point>
+其中 x 在 0 到 {w1} 之间，y 在 0 到 {h1} 之间。不要输出任何解释。"""
 
-PROMPT_REASON = """You are a GUI agent. The screenshot is {w}x{h} pixels.
-Find the control labeled "{label}".
-First think briefly: where is it, what is around it, what could be confused with it.
-Then answer on a new line with only: <point>x,y</point>"""
+PROMPT_REASON = """你是 GUI 定位模型。截图尺寸是 {w}x{h} 像素。
+请找到文字为「{label}」的控件。
+先用一两句话说明它大概在界面什么位置、周围有什么、容易和什么混淆，
+然后在最后一行只输出：<point>x,y</point>"""
 
 PATTERNS = [
     r"<point>\s*(-?\d+(?:\.\d+)?)\s*[,，]\s*(-?\d+(?:\.\d+)?)\s*</point>",
@@ -90,11 +91,12 @@ class VLM:
         self.canvas = canvas
         self.name = model
 
-    def ask(self, img, prompt, **kwargs):
+    def ask(self, img, prompt, max_tokens=None, **kwargs):
         # origin/size 只有 mock 需要；真模型直接看整张图（或整张裁剪图）
         b64 = b64png(img)
         payload = {
-            "model": self.model, "temperature": 0, "max_tokens": self.max_tokens,
+            "model": self.model, "temperature": 0,
+            "max_tokens": max_tokens or self.max_tokens,
             "messages": [{"role": "user", "content": [
                 {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}},
                 {"type": "text", "text": prompt}]}],
@@ -124,8 +126,9 @@ class MockVLM:
         self.noise = noise
         self.name = "mock"
 
-    def ask(self, img, prompt, origin=(0, 0), size=None):
-        label = re.search(r'labeled "([^"]+)"', prompt).group(1)
+    def ask(self, img, prompt, origin=(0, 0), size=None, max_tokens=None):
+        m = re.search(r'文字为「([^」]+)」', prompt) or re.search(r'labeled "([^"]+)"', prompt)
+        label = m.group(1)
         x, y, w, h = self.boxes[label]
         cx, cy = x + w / 2 - origin[0], y + h / 2 - origin[1]
         cx += random.gauss(0, self.noise)
@@ -225,12 +228,16 @@ def main():
         cw = int(args.crop * args.crop_zoom)
         crop = crop.resize((cw, cw), Image.LANCZOS)
         p1_prompt = PROMPT_ZOOM.format(w=cw, h=cw, w1=cw - 1, h1=cw - 1, label=label)
-        raw1, dt1, use1 = agent.ask(crop, p1_prompt, origin=(left, top), size=(cw, cw))
+        raw1, dt1, use1 = agent.ask(crop, p1_prompt, origin=(left, top), size=(cw, cw),
+                                    max_tokens=160)
         pt1 = parse_point(raw1)
         img1 = None if pt1 is None else (left + pt1[0] * cw / args.canvas, top + pt1[1] * cw / args.canvas)
+        # 备选换算：万一模型是按"声明的尺寸"给坐标而不是按 1024 画布
+        img1_alt = None if pt1 is None else (left + pt1[0] * cw / cw, top + pt1[1] * cw / cw)
         rec.update({
             "p1_raw": raw1.replace("\n", " "), "p1_img": img1, "p1_crop": [left, top, right, bottom],
             "p1_hit": bool(img1 and inside(img1, box)),
+            "p1_hit_alt": bool(img1_alt and inside(img1_alt, box)),
             "p1_dist": None if not img1 else round(dist_to_center(img1, box), 1),
             "p1_lat": round(dt1, 2),
             "p1_contains_target": inside(((box[0] + box[2] / 2), (box[1] + box[3] / 2)),
@@ -239,7 +246,8 @@ def main():
 
         # ---------- P2 追加推理：同一张图，先分析再回答 ----------
         p2_prompt = PROMPT_REASON.format(w=IW, h=IH, w1=IW - 1, h1=IH - 1, label=label)
-        raw2, dt2, use2 = agent.ask(base_img, p2_prompt, origin=(0, 0), size=(IW, IH))
+        raw2, dt2, use2 = agent.ask(base_img, p2_prompt, origin=(0, 0), size=(IW, IH),
+                                    max_tokens=384)
         pt2 = parse_point(raw2)
         img2 = None if pt2 is None else (pt2[0] * IW / args.canvas, pt2[1] * IH / args.canvas)
         rec.update({
@@ -280,6 +288,7 @@ def main():
         "delta_p2": (hits[2] - hits[0]) / n,
         "rescued_by_p1": len(rescued),
         "lost_by_p1": len(lost),
+        "p1_hit_alt": sum(1 for r in rows if r.get("p1_hit_alt")),
         "rescued_by_p2": len(rescued2),
         "lost_by_p2": len(lost2),
         "p0_failures": len(fail_p0),
