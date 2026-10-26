@@ -42,9 +42,7 @@ _VENDOR = HERE / "vendor"
 if _VENDOR.is_dir():
     sys.path.insert(0, str(_VENDOR))
 
-PROMPT_DIRECT = """你是 GUI 定位模型。截图尺寸是 {w}x{h} 像素。
-请在界面中找到文字为「{label}」的控件，给出该控件中心点的像素坐标。
-Reply with only: <point>x,y</point>, where x is in [0,{w1}], y in [0,{h1}]. No explanation."""
+from probe import PROMPT as PROMPT_DIRECT  # 直接复用 probe.py 的提示词，保证两条路径可比
 
 PROMPT_ZOOM = """这是一张界面截图的局部放大图。
 请在这张图中找到文字为「{label}」的控件。
@@ -135,8 +133,12 @@ class MockVLM:
         cx += random.gauss(0, self.noise)
         cy += random.gauss(0, self.noise)
         iw, ih = size or img.size
-        px = cx * self.canvas / iw
-        py = cy * self.canvas / ih
+        if "相对坐标" in prompt:          # P1 要求 0-1000 相对坐标
+            px = cx / iw * 1000
+            py = cy / ih * 1000
+        else:                             # 其余按画布像素
+            px = cx * self.canvas / iw
+            py = cy * self.canvas / ih
         time.sleep(0.01)
         return f"<point>{px:.0f},{py:.0f}</point>", 0.01, {"prompt_tokens": 0, "completion_tokens": 0}
 
@@ -236,14 +238,16 @@ def main():
         raw1, dt1, use1 = agent.ask(crop, p1_prompt, origin=(left, top), size=(cw, cw),
                                     max_tokens=160)
         pt1 = parse_point(raw1)
-        # 主换算：按 0-1000 相对坐标（与画布无关）；备选：按画布像素
+        # 关键：相对坐标要乘的是「裁剪窗口覆盖的原图像素」（args.crop），
+        # 不是放大后的 cw。裁剪图 320px 被放大到 1024，但空间范围仍是 320。
+        extent = args.crop
         if pt1 is None:
             img1 = img1_alt = None
         elif max(pt1) <= 1000:
-            img1 = (left + pt1[0] / 1000 * cw, top + pt1[1] / 1000 * cw)
-            img1_alt = (left + pt1[0] * cw / args.canvas, top + pt1[1] * cw / args.canvas)
+            img1 = (left + pt1[0] / 1000 * extent, top + pt1[1] / 1000 * extent)
+            img1_alt = (left + pt1[0] * extent / args.canvas, top + pt1[1] * extent / args.canvas)
         else:
-            img1 = (left + pt1[0] * cw / args.canvas, top + pt1[1] * cw / args.canvas)
+            img1 = (left + pt1[0] * extent / args.canvas, top + pt1[1] * extent / args.canvas)
             img1_alt = (left + pt1[0], top + pt1[1])
         rec.update({
             "p1_raw": raw1.replace("\n", " "), "p1_img": img1, "p1_crop": [left, top, right, bottom],
