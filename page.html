@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>GUI Click Lab — 测试页</title>
+<style>
+  html, body {
+    margin: 0; padding: 0;
+    width: 1920px; height: 1080px;
+    overflow: hidden;
+    font-family: "Microsoft YaHei", "Segoe UI", system-ui, sans-serif;
+    background: #f2f5fa; color: #1e2430;
+  }
+  header {
+    height: 72px; display: flex; align-items: center; gap: 28px;
+    padding: 0 48px; background: #ffffff; border-bottom: 1px solid #e2e8f2;
+  }
+  .logo { width: 34px; height: 34px; border-radius: 9px;
+          background: linear-gradient(135deg,#3b6cf6,#7b5cf0); }
+  .brand { font-size: 21px; font-weight: 700; letter-spacing: .5px; }
+  nav { display: flex; gap: 26px; font-size: 17px; color: #5a6478; }
+  nav span.on { color: #2b57e0; font-weight: 600; }
+  .avatar { margin-left: auto; width: 38px; height: 38px; border-radius: 50%;
+            background: #d7e0f5; border: 2px solid #b9c8e8; }
+  main { padding: 40px 48px; }
+  h2 { margin: 0 0 6px; font-size: 22px; font-weight: 700; }
+  .sub { margin: 0 0 26px; font-size: 15px; color: #7a8499; }
+  .grid { display: grid; grid-template-columns: repeat(5, 300px); gap: 22px 26px; }
+  button.card {
+    height: 96px; display: flex; align-items: center; gap: 14px;
+    padding: 0 18px; border: 1px solid #dbe3f0; border-radius: 12px;
+    background: #fff; font-size: 17px; color: #1e2430; cursor: pointer;
+    font-family: inherit; text-align: left;
+  }
+  button.card:hover { border-color: #9db4e8; background: #f7faff; }
+  .ico { width: 34px; height: 34px; border-radius: 8px; background: #e8eefc;
+         flex: 0 0 34px; }
+  button.card.danger .ico { background: #fde8e8; }
+  button.card[disabled] { color: #a9b2c4; background: #f4f6fa; cursor: not-allowed; }
+  button.card[disabled] .ico { background: #eceff5; }
+  .section { margin-top: 34px; }
+  .section h3 { margin: 0 0 14px; font-size: 16px; color: #5a6478; font-weight: 600; }
+  .row { display: flex; gap: 26px; }
+  button.mini {
+    width: 300px; height: 56px; border: 1px solid #dbe3f0; border-radius: 10px;
+    background: #fff; font-size: 16px; cursor: pointer; font-family: inherit;
+  }
+  button.mini:hover { border-color: #9db4e8; }
+  button.mini.danger { border-color: #f2c6c6; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"></div>
+  <div class="brand">CloudDesk 控制台</div>
+  <nav><span class="on">工作区</span><span>任务</span><span>报表</span><span>成员</span></nav>
+  <div class="avatar"></div>
+</header>
+
+<main>
+  <h2>常用操作</h2>
+  <p class="sub">选择一个操作以继续（本页面仅用于 GUI 定位实验）</p>
+  <div class="grid" id="grid"></div>
+
+  <div class="section">
+    <h3>危险操作（不可用）</h3>
+    <div class="row" id="danger"></div>
+  </div>
+
+  <div class="section">
+    <h3>提交确认</h3>
+    <div class="row" id="tricky"></div>
+  </div>
+</main>
+
+<script>
+const GRID = ["保存文档","导出 PDF","新建工作表","插入图表","打印预览",
+              "发送邮件","添加附件","回复全部","转发邮件","归档",
+              "创建副本","重命名","移动到文件夹","下载","分享链接",
+              "打开设置","通知中心","帮助中心","退出登录","切换账号"];
+const DANGER = ["删除账户","清除缓存","恢复默认","同步数据"];
+const TRICKY = ["确认提交","确认并提交","确认提交并关闭"];
+
+window.__ui = { boxes: [], clicks: [] };
+
+function mkBtn(label, cls, id) {
+  const b = document.createElement("button");
+  b.className = "card " + (cls || "");
+  b.id = id;
+  b.dataset.label = label;
+  b.innerHTML = `<span class="ico"></span><span>${label}</span>`;
+  b.addEventListener("click", () => {
+    window.__ui.clicks.push({ id, label, t: performance.now() });
+  });
+  return b;
+}
+
+const grid = document.getElementById("grid");
+GRID.forEach((label, i) => grid.appendChild(mkBtn(label, "", "btn-" + (i + 1))));
+
+const danger = document.getElementById("danger");
+DANGER.forEach((label, i) => {
+  const b = mkBtn(label, "mini danger", "disabled-" + (i + 1));
+  b.disabled = true;                       // 点在它身上不会有任何效果
+  b.dataset.clickable = "0";
+  danger.appendChild(b);
+});
+
+const tricky = document.getElementById("tricky");
+TRICKY.forEach((label, i) => {
+  const b = mkBtn(label, "mini", "tricky-" + (i + 1));
+  b.className = "mini";                    // 用 mini 样式
+  tricky.appendChild(b);
+});
+
+function refresh() {
+  window.__ui.boxes = [...document.querySelectorAll("[data-label]")].map(el => {
+    const r = el.getBoundingClientRect();
+    return {
+      id: el.id,
+      label: el.dataset.label,
+      x: r.x, y: r.y, w: r.width, h: r.height,
+      clickable: el.dataset.clickable !== "0" && !el.disabled
+    };
+  });
+}
+
+window.__reset = () => { window.__ui.clicks = []; refresh(); };
+
+// 等字体与布局稳定后再测量
+(document.fonts ? document.fonts.ready : Promise.resolve()).then(() => {
+  requestAnimationFrame(() => { refresh(); setTimeout(refresh, 120); });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+# 第三方库（Pillow 用 vendor/ 本地加载，不进版本库）
+vendor/
+__pycache__/
+*.pyc
+
+# 运行产物：数据太多，只保留报告
+results/
+
+# 临时文件
+*.log
+.tmp/
+tmpwork/
