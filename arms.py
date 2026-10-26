@@ -46,10 +46,11 @@ PROMPT_DIRECT = """你是 GUI 定位模型。截图尺寸是 {w}x{h} 像素。
 请在界面中找到文字为「{label}」的控件，给出该控件中心点的像素坐标。
 Reply with only: <point>x,y</point>, where x is in [0,{w1}], y in [0,{h1}]. No explanation."""
 
-PROMPT_ZOOM = """这是一张界面截图的局部放大图，尺寸 {w}x{h} 像素。
-请在这张放大图中找到文字为「{label}」的控件，给出它在这张图中的中心点坐标。
-只输出一行，严格使用这个格式：<point>x,y</point>
-其中 x 在 0 到 {w1} 之间，y 在 0 到 {h1} 之间。不要输出任何解释。"""
+PROMPT_ZOOM = """这是一张界面截图的局部放大图。
+请在这张图中找到文字为「{label}」的控件。
+用「相对坐标」回答：x、y 都是 0 到 1000 之间的整数，
+左上角是 (0,0)，右下角是 (1000,1000)，与图片实际像素大小无关。
+只输出一行：<point>x,y</point>，不要解释。"""
 
 PROMPT_REASON = """你是 GUI 定位模型。截图尺寸是 {w}x{h} 像素。
 请找到文字为「{label}」的控件。
@@ -162,6 +163,7 @@ def main():
     ap.add_argument("--mock", action="store_true")
     ap.add_argument("--mock-noise", type=float, default=0.0)
     ap.add_argument("--mock-noise-p0", type=float, default=None)
+    ap.add_argument("--debug-raw", action="store_true", help="打印前几个样本的 P1 原始输出")
     ap.add_argument("--out", default=str(HERE / "results"))
     args = ap.parse_args()
 
@@ -225,15 +227,24 @@ def main():
         top = max(0, min(IH - args.crop, cy - half))
         right, bottom = left + args.crop, top + args.crop
         crop = base_img.crop((left, top, right, bottom))
-        cw = int(args.crop * args.crop_zoom)
+        # 统一放大到和画布一样大（1024）：既放大目标，又保证 API 不会再缩放它，
+        # 从而坐标空间始终等于 args.canvas。之前用 640，API 认为图够小就不缩，
+        # 坐标变成 640 空间，导致 P1 全错。
+        cw = args.canvas
         crop = crop.resize((cw, cw), Image.LANCZOS)
         p1_prompt = PROMPT_ZOOM.format(w=cw, h=cw, w1=cw - 1, h1=cw - 1, label=label)
         raw1, dt1, use1 = agent.ask(crop, p1_prompt, origin=(left, top), size=(cw, cw),
                                     max_tokens=160)
         pt1 = parse_point(raw1)
-        img1 = None if pt1 is None else (left + pt1[0] * cw / args.canvas, top + pt1[1] * cw / args.canvas)
-        # 备选换算：万一模型是按"声明的尺寸"给坐标而不是按 1024 画布
-        img1_alt = None if pt1 is None else (left + pt1[0] * cw / cw, top + pt1[1] * cw / cw)
+        # 主换算：按 0-1000 相对坐标（与画布无关）；备选：按画布像素
+        if pt1 is None:
+            img1 = img1_alt = None
+        elif max(pt1) <= 1000:
+            img1 = (left + pt1[0] / 1000 * cw, top + pt1[1] / 1000 * cw)
+            img1_alt = (left + pt1[0] * cw / args.canvas, top + pt1[1] * cw / args.canvas)
+        else:
+            img1 = (left + pt1[0] * cw / args.canvas, top + pt1[1] * cw / args.canvas)
+            img1_alt = (left + pt1[0], top + pt1[1])
         rec.update({
             "p1_raw": raw1.replace("\n", " "), "p1_img": img1, "p1_crop": [left, top, right, bottom],
             "p1_hit": bool(img1 and inside(img1, box)),
@@ -258,6 +269,9 @@ def main():
         })
 
         rows.append(rec)
+        if args.debug_raw and i <= 3:
+            print(f"   [debug] P0 raw: {raw0[:80]!r}")
+            print(f"   [debug] P1 raw: {raw1[:120]!r}  crop={left},{top}")
         jl.write(json.dumps(rec, ensure_ascii=False) + "\n")
         jl.flush()          # 边跑边落盘：中途出错也不丢已跑的结果
         mark = "".join("✓" if rec[f"p{k}_hit"] else "✗" for k in (0, 1, 2))
