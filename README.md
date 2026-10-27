@@ -184,7 +184,7 @@ python src/aggregate.py
 powershell -File .\tools\make_hard_image.ps1 -OutDir .\tiny -FontSize 9 -NoIcon
 ```
 
-## 7. 局限（写作时必须逐条说明）
+## 7. 局限
 
 1. **单步、无执行**：测的是"指得准不准"，不是"点下去对不对"，更不是任务成功。
 2. **合成界面**：复杂度和视觉噪声低于真实桌面软件。
@@ -204,7 +204,7 @@ powershell -File .\tools\make_hard_image.ps1 -OutDir .\tiny -FontSize 9 -NoIcon
 | 中 | 接入执行（浏览器或 OSWorld），做多步任务 | 见 `E:\Deepseek\osworld-preflight` |
 | 低 | 本地 8B 复现，支撑"消费级显卡可跑" | 需 LM Studio + 8GB 显存 |
 
-## 9. 一页纸总结（可直接用于开题报告）
+## 9. 总结
 
 > 在 29 个目标的合成定位测试集上，`qwen3-vl-plus` 的直接定位命中率为 71.3±5.3%。
 > 追加一次局部放大观测后提升至 82.8±3.4%（+11.5pp，三次运行全为正）；
