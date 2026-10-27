@@ -112,24 +112,48 @@ P1 要求模型输出 **0–1000 的相对坐标**，映射时不依赖任何画
 可能机制：模型对位置的自我描述本身是错的，随后照着错误描述去点（自我锚定），
 或分析占用了定位所需的注意力。这与 *To CoT or not to CoT* 的结论一致，也直接支持"多算 ≠ 更准"。
 
-## 5. 代码结构
+## 5. 目录结构与代码说明
+
+```
+gui-click-lab/
+├─ README.md                本文件
+├─ src/                     全部 Python 代码
+│  ├─ probe.py              单路基线（造尺子）
+│  ├─ arms.py               三路对照（核心实验）
+│  ├─ run_all.py            一键跑完基线 + 三路
+│  ├─ compile_report.py     单次运行 → 报告
+│  ├─ aggregate.py          多次运行 → 均值±标准差
+│  ├─ keyutil.py            API Key 读取（参数 > 环境变量 > key.txt）
+│  ├─ ping_model.py         连通性自检
+│  ├─ list_vl_models.py     列出可用视觉模型
+│  └─ selftest.py           单元测试（不联网）
+├─ tools/                   生成测试集的 PowerShell 脚本
+│  ├─ make_test_image.ps1   易版（17px）
+│  └─ make_hard_image.ps1   难版（12px / 9px、遮挡、相似文案）
+├─ assets/                  测试素材（图片 + 标准答案）
+│  ├─ easy/                 17px，难度校准用
+│  ├─ tiny/                 9px，正式实验用（本报告数据来自这里）
+│  └─ hard/                 12px，中间档
+├─ docs/                    报告
+│  ├─ 最终报告.md
+│  ├─ 多次运行汇总.md
+│  └─ 预研报告.md            单次运行自动生成（可删）
+├─ data/                    4 次真实运行的归档（证据）
+└─ results/                 运行输出（不入库）
+```
 
 | 文件 | 作用 | 备注 |
 |---|---|---|
-| `probe.py` | 单路基线：整图提问 → 命中率/误差/延迟 | 造"尺子"，用于难度校准 |
-| `arms.py` | 三路对照：P0/P1/P2 配对实验 | **核心实验脚本** |
-| `run_all.py` | 一键跑完基线 + 三路并汇编报告 | 日常用这个 |
-| `compile_report.py` | 单次运行 → Markdown 报告 | 由 run_all 调用 |
-| `aggregate.py` | 多次运行 → 均值±标准差 | 写论文用 |
-| `keyutil.py` | 读 API Key（参数 > 环境变量 > `key.txt`） | |
-| `ping_model.py` | 连通性自检：列模型、发一条请求 | 排错第一步 |
-| `list_vl_models.py` | 列出账号可用的视觉模型 | |
-| `selftest.py` | 解析/换算/判分的单元测试 | 不联网、不开浏览器 |
-| `make_test_image.ps1` | 生成"易"版测试集（17px） | GDI+ 绘制，同时输出坐标 |
-| `make_hard_image.ps1` | 生成"难"版（12px/9px、遮挡、相似文案） | 支持 `-FontSize` / `-NoIcon` |
-| `page.html` | 浏览器版测试页 | 尚未接入执行，留作下一步 |
-| `data/` | 3 次运行 + 1 次基线的归档（CSV/JSON/summary） | 仓库自带证据 |
-| `tiny/` `hard/` | 两档难度的测试图与标准答案 | 图片 + labels.json |
+| `src/probe.py` | 单路基线：整图提问 → 命中率/误差/延迟 | 用于难度校准 |
+| `src/arms.py` | 三路对照：P0/P1/P2 配对实验 | **核心实验脚本** |
+| `src/run_all.py` | 一键跑完基线 + 三路并汇编报告 | 日常用这个 |
+| `src/aggregate.py` | 多次运行 → 均值±标准差 | 写论文用 |
+| `src/selftest.py` | 解析/换算/判分的单元测试 | 应当全绿 |
+| `src/keyutil.py` | API Key 读取顺序封装 | |
+| `src/ping_model.py` | 连通性自检，排错第一步 | |
+| `src/list_vl_models.py` | 列出账号可用的视觉模型 | |
+| `tools/*.ps1` | 用 GDI+ 画测试界面，同时输出坐标 | 无需设计工具 |
+| `assets/*/labels.json` | 每个目标的精确矩形框 | 图片与答案同目录 |
 
 不进入版本库：`key.txt`（密钥）、`vendor/`（本地 Pillow）、`results/`（运行产物）。
 
@@ -137,7 +161,7 @@ P1 要求模型输出 **0–1000 的相对坐标**，映射时不依赖任何画
 
 ```powershell
 # 0) 依赖：Python 3.10+；Pillow 已放在 vendor/，无需 pip
-python selftest.py                 # 单测，应当全绿
+python src/selftest.py                 # 单测，应当全绿
 
 # 1) 配置 API Key（三选一）
 #    a. 当前窗口： $env:GUI_LAB_API_KEY = "sk-..."
@@ -145,19 +169,19 @@ python selftest.py                 # 单测，应当全绿
 #    c. 写文件：   Set-Content .\key.txt "sk-..." -NoNewline
 
 # 2) 连通性
-python list_vl_models.py --base-url https://dashscope.aliyuncs.com/compatible-mode/v1
+python src/list_vl_models.py --base-url https://dashscope.aliyuncs.com/compatible-mode/v1
 
 # 3) 跑一次完整实验（基线 + 三路，约 3 分钟 / 87 次调用）
-python run_all.py --base-url https://dashscope.aliyuncs.com/compatible-mode/v1 --model qwen3-vl-plus
+python src/run_all.py --base-url https://dashscope.aliyuncs.com/compatible-mode/v1 --model qwen3-vl-plus
 
 # 4) 重复 3 次后汇总
-python aggregate.py
+python src/aggregate.py
 ```
 
 重新生成测试集：
 
 ```powershell
-powershell -File .\make_hard_image.ps1 -OutDir .\tiny -FontSize 9 -NoIcon
+powershell -File .\tools\make_hard_image.ps1 -OutDir .\tiny -FontSize 9 -NoIcon
 ```
 
 ## 7. 局限（写作时必须逐条说明）

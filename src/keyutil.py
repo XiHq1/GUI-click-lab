@@ -10,7 +10,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-_KEY_FILE = Path(__file__).resolve().parent / "key.txt"
+_KEY_FILE = Path(__file__).resolve().parent.parent / "key.txt"
 
 
 def get_key(cli_value: str = "") -> str:

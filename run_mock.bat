@@ -2,11 +2,11 @@
 chcp 65001 >nul
 cd /d %~dp0
 echo ============================================
-echo  1/2 假模型跑通链路
+echo  自检 + 干跑（不联网、不花钱）
 echo ============================================
-python selftest.py
+python src\selftest.py
 echo.
-python probe.py --mock
+python src\run_all.py --mock --limit 5
 echo.
-echo 报告在 results\ 下最新那个文件夹里（report.html）
+echo 报告：docs\预研报告.md
 pause

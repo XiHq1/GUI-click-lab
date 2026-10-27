@@ -35,10 +35,11 @@ try:
 except Exception:
     pass
 
-HERE = Path(__file__).resolve().parent
+HERE = Path(__file__).resolve().parent   # src/
+ROOT = HERE.parent                       # 仓库根目录
 
 # 本地 vendor 目录（Pillow 放在这里就不用 pip install）
-_VENDOR = HERE / "vendor"
+_VENDOR = ROOT / "vendor"
 if _VENDOR.is_dir():
     sys.path.insert(0, str(_VENDOR))
 
@@ -154,7 +155,7 @@ def dist_to_center(pt, box):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--labels", default=str(HERE / "tiny" / "labels.json"))
+    ap.add_argument("--labels", default=str(ROOT / "assets" / "tiny" / "labels.json"))
     ap.add_argument("--base-url", default="http://127.0.0.1:1234")
     ap.add_argument("--model", default="qwen3-vl-plus")
     ap.add_argument("--api-key", default="")
@@ -166,7 +167,7 @@ def main():
     ap.add_argument("--mock-noise", type=float, default=0.0)
     ap.add_argument("--mock-noise-p0", type=float, default=None)
     ap.add_argument("--debug-raw", action="store_true", help="打印前几个样本的 P1 原始输出")
-    ap.add_argument("--out", default=str(HERE / "results" / "arms"),
+    ap.add_argument("--out", default=str(ROOT / "results" / "arms"),
                     help="默认 results/arms，与 run_all.py 保持一致")
     args = ap.parse_args()
 
@@ -177,7 +178,7 @@ def main():
         return 1
 
     meta = json.loads(Path(args.labels).read_text(encoding="utf-8"))
-    img_path = HERE / meta["image_1280"]
+    img_path = Path(args.labels).resolve().parent / meta["image_1280"]
     base_img = Image.open(img_path).convert("RGB")
     IW, IH = base_img.size
     sw, sh = meta["screen"]

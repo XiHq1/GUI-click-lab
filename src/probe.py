@@ -40,7 +40,8 @@ try:
 except Exception:
     pass
 
-HERE = Path(__file__).resolve().parent
+HERE = Path(__file__).resolve().parent   # src/
+ROOT = HERE.parent                       # 仓库根目录
 
 PROMPT = """你是 GUI 定位模型。截图尺寸是 {w}x{h} 像素。
 请在界面中找到文字为「{label}」的控件，给出该控件中心点的像素坐标。
@@ -219,7 +220,7 @@ def write_report(out_dir: Path, rows: list, meta: dict, mw: int, mh: int):
 # ----------------------------------------------------------------- 主流程
 def main():
     ap = argparse.ArgumentParser(description="最小 GUI 定位实验")
-    ap.add_argument("--labels", default=str(HERE / "labels.json"))
+    ap.add_argument("--labels", default=str(HERE.parent / "assets" / "tiny" / "labels.json"))
     ap.add_argument("--mock", action="store_true", help="用假模型验证链路")
     ap.add_argument("--noise", type=float, default=6.0, help="假模型的噪声（像素）")
     ap.add_argument("--base-url", default="http://127.0.0.1:1234", help="LM Studio 默认 1234，llama.cpp 常用 8080")
@@ -237,14 +238,14 @@ def main():
     ap.add_argument("--show-prompt", action="store_true", help="打印发给模型的完整提示词（确认没泄题）")
     ap.add_argument("--max-tokens", type=int, default=64,
                     help="单次输出上限；Thinking 模型要调到 2048 以上，否则思考被截断")
-    ap.add_argument("--out", default=str(HERE / "results"))
+    ap.add_argument("--out", default=str(HERE.parent / "results" / "baseline"))
     args = ap.parse_args()
 
     if args.seed:
         random.seed(args.seed)
 
     labels = json.loads(Path(args.labels).read_text(encoding="utf-8"))
-    img_path = HERE / labels["image_1280"]
+    img_path = Path(args.labels).resolve().parent / labels["image_1280"]
     mw, mh = labels["model_input"]
     sw, sh = labels["screen"]
 

@@ -70,7 +70,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--base-url", default="http://127.0.0.1:1234")
     ap.add_argument("--model", default="")
-    ap.add_argument("--image", default=str(HERE / "shot_1280.png"))
+    ap.add_argument("--image", default=str(HERE.parent / "assets" / "tiny" / "shot_1280.png"))
     ap.add_argument("--api-key", default="", help="不填则读环境变量 GUI_LAB_API_KEY")
     args = ap.parse_args()
 

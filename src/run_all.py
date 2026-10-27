@@ -16,7 +16,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
+HERE = Path(__file__).resolve().parent   # src/
+ROOT = HERE.parent                       # 仓库根目录
 
 
 def run(cmd):
@@ -30,7 +31,7 @@ def run(cmd):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--labels", default=str(HERE / "tiny" / "labels.json"))
+    ap.add_argument("--labels", default=str(ROOT / "assets" / "tiny" / "labels.json"))
     ap.add_argument("--base-url", default="http://127.0.0.1:1234")
     ap.add_argument("--model", default="qwen3-vl-plus")
     ap.add_argument("--canvas", type=int, default=1024)
@@ -44,13 +45,13 @@ def main():
         common += ["--limit", str(args.limit)]
 
     if args.mock:
-        base_cmd = [py, "probe.py", "--mock", "--out", str(HERE / "results" / "baseline")] + common
-        arms_cmd = [py, "arms.py", "--mock", "--out", str(HERE / "results" / "arms")] + common
+        base_cmd = [py, "probe.py", "--mock", "--out", str(ROOT / "results" / "baseline")] + common
+        arms_cmd = [py, "arms.py", "--mock", "--out", str(ROOT / "results" / "arms")] + common
     else:
         api = ["--base-url", args.base_url, "--model", args.model]
-        base_cmd = ([py, "probe.py", "--out", str(HERE / "results" / "baseline")]
+        base_cmd = ([py, "probe.py", "--out", str(ROOT / "results" / "baseline")]
                     + common + api + ["--coord-space", f"{args.canvas}x{args.canvas}"])
-        arms_cmd = ([py, "arms.py", "--out", str(HERE / "results" / "arms")]
+        arms_cmd = ([py, "arms.py", "--out", str(ROOT / "results" / "arms")]
                     + common + api + ["--canvas", str(args.canvas)])
 
     if not run(base_cmd):
@@ -59,9 +60,9 @@ def main():
         return 1
 
     tag = "（干跑，不可用于结论）" if args.mock else ""
-    out_md = HERE / "预研报告.md"
-    run([py, "compile_report.py", "--baseline-root", str(HERE / "results" / "baseline"),
-         "--arms-root", str(HERE / "results" / "arms"), "--out", str(out_md), "--tag", tag])
+    out_md = ROOT / "docs" / "预研报告.md"
+    run([py, "compile_report.py", "--baseline-root", str(ROOT / "results" / "baseline"),
+         "--arms-root", str(ROOT / "results" / "arms"), "--out", str(out_md), "--tag", tag])
     print(f"\n报告：{out_md}")
     return 0
 
