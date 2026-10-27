@@ -270,6 +270,12 @@ def main():
         model = MockModel(truth, args.noise, args.coord_mode)
     else:
         key = args.api_key or os.environ.get("GUI_LAB_API_KEY", "none")
+        if not key or key == "none":
+            try:
+                from keyutil import get_key
+                key = get_key() or "none"
+            except Exception:
+                pass
         model = VLM(args.base_url, args.model, key, max_tokens=args.max_tokens)
 
     if args.show_prompt:

@@ -75,6 +75,12 @@ def main():
     args = ap.parse_args()
 
     api_key = args.api_key or os.environ.get("GUI_LAB_API_KEY", "")
+    if not api_key:
+        try:
+            from keyutil import get_key
+            api_key = get_key()
+        except Exception:
+            pass
 
     base = args.base_url.rstrip("/")
     if not base.endswith("/v1"):

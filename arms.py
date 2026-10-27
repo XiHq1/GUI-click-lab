@@ -193,6 +193,12 @@ def main():
                            noise=args.mock_noise_p0 if args.mock_noise_p0 is not None else args.mock_noise)
     else:
         key = args.api_key or os.environ.get("GUI_LAB_API_KEY", "none")
+        if not key or key == "none":
+            try:
+                from keyutil import get_key
+                key = get_key() or "none"
+            except Exception:
+                pass
         agent = VLM(args.base_url, args.model, key, canvas=args.canvas)
         agent_p0 = agent
 

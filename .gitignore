@@ -6,6 +6,10 @@ __pycache__/
 # 运行产物：数据太多，只保留报告
 results/
 
+# 密钥：绝不能进版本库
+key.txt
+.env
+
 # 临时文件
 *.log
 .tmp/
