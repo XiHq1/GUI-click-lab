@@ -322,6 +322,15 @@ def main():
         "lat_p95_p1": round(sorted(r["p1_lat"] for r in rows)[int(0.95 * (n - 1))], 2),
     }
     (out / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+    (out / "meta.json").write_text(json.dumps({
+        "run_id": run_id,
+        "agent": agent.name,
+        "label_file": str(args.labels),
+        "canvas": args.canvas,
+        "crop": args.crop,
+        "n_tasks": n,
+        "mock": args.mock,
+    }, ensure_ascii=False, indent=2), encoding="utf-8")
 
     lines = [
         f"# 三路对照结果 · {run_id}", "",

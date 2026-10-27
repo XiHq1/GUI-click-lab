@@ -1,0 +1,11 @@
+{
+  "run": "20261027-125038-arms",
+  "kind": "arms",
+  "agent": "qwen3-vl-plus",
+  "api_base": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+  "canvas": 1024,
+  "labels": "tiny/labels.json",
+  "n_tasks": 29,
+  "repeats": 1,
+  "note": "由 results/ 归档；原始 jsonl 已删除，CSV 中保留了模型原始输出"
+}

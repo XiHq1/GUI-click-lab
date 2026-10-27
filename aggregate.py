@@ -60,8 +60,8 @@ def stats(vals):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--root", default=str(HERE / "results"),
-                    help="扫描根目录，会递归找所有 *-arms 目录")
+    ap.add_argument("--root", default=str(HERE),
+                    help="扫描根目录（默认整个仓库），递归找所有 *-arms 目录；data/ 与 results/ 都覆盖")
     ap.add_argument("--min-runs", type=int, default=1)
     ap.add_argument("--since", default="", help="只统计目录名不早于该前缀的运行，如 20261027")
     ap.add_argument("--out", default=str(HERE / "多次运行汇总.md"))
