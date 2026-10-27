@@ -27,6 +27,20 @@ def main():
     args = ap.parse_args()
 
     key = args.api_key or os.environ.get("GUI_LAB_API_KEY", "")
+    if not key:
+        try:
+            from keyutil import get_key, key_file_path
+            key = get_key()
+            if key:
+                print(f"（从 {key_file_path().name} 读到 key）")
+        except Exception:
+            pass
+    if not key:
+        print("✗ 没有读到 API Key。三选一：")
+        print('  1) 当前窗口临时设置：$env:GUI_LAB_API_KEY = "sk-..."')
+        print('  2) 永久设置：[Environment]::SetEnvironmentVariable("GUI_LAB_API_KEY","sk-...","User")，然后新开窗口')
+        print('  3) 写文件：Set-Content .\\key.txt "sk-..." -NoNewline')
+        return 1
     base = args.base_url.rstrip("/")
     if not base.endswith("/v1"):
         base += "/v1"
