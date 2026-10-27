@@ -166,7 +166,8 @@ def main():
     ap.add_argument("--mock-noise", type=float, default=0.0)
     ap.add_argument("--mock-noise-p0", type=float, default=None)
     ap.add_argument("--debug-raw", action="store_true", help="打印前几个样本的 P1 原始输出")
-    ap.add_argument("--out", default=str(HERE / "results"))
+    ap.add_argument("--out", default=str(HERE / "results" / "arms"),
+                    help="默认 results/arms，与 run_all.py 保持一致")
     args = ap.parse_args()
 
     try:

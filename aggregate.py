@@ -20,13 +20,28 @@ HERE = Path(__file__).resolve().parent
 
 
 def load_runs(root: Path):
+    """递归找出所有 *-arms 目录（兼容 results/<x>-arms 和 results/arms/<x>-arms 两种位置）。
+
+    同时跳过 mock 干跑，避免把自测数据混进统计。
+    """
     runs = []
     if not root.is_dir():
         return runs
-    for d in sorted(root.iterdir()):
+    seen = set()
+    for d in sorted(root.rglob("*-arms")):
+        if not d.is_dir() or d in seen:
+            continue
+        seen.add(d)
         f = d / "summary.json"
         if not f.is_file():
             continue
+        meta_f = d / "meta.json"
+        if meta_f.is_file():
+            try:
+                if str(json.loads(meta_f.read_text(encoding="utf-8")).get("agent", "")).startswith("mock"):
+                    continue
+            except Exception:
+                pass
         try:
             s = json.loads(f.read_text(encoding="utf-8"))
         except Exception:
@@ -45,7 +60,8 @@ def stats(vals):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--root", default=str(HERE / "results" / "arms"))
+    ap.add_argument("--root", default=str(HERE / "results"),
+                    help="扫描根目录，会递归找所有 *-arms 目录")
     ap.add_argument("--min-runs", type=int, default=1)
     ap.add_argument("--since", default="", help="只统计目录名不早于该前缀的运行，如 20261027")
     ap.add_argument("--out", default=str(HERE / "多次运行汇总.md"))
